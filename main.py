@@ -47,6 +47,8 @@ class DiscordBot(commands.Bot):
 
         # Load cogs
         cogs_to_load = [
+            "cogs.error_handler",  # Load error handler first
+            "cogs.help",
             "cogs.moderation",
             "cogs.admin",
             "cogs.tasks",

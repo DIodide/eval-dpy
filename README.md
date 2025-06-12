@@ -11,6 +11,9 @@ A comprehensive Discord bot boilerplate built with discord.py featuring modular 
 - 🔐 **Permission System**: Role-based command access control
 - 📝 **Logging**: Comprehensive logging for debugging and monitoring
 - 🎨 **Rich Embeds**: Beautiful embedded messages for better UX
+- 🎛️ **Interactive Menus**: Paginated embeds, dropdowns, and confirmation dialogs
+- ❓ **Advanced Help System**: Interactive help menus with categorized commands
+- 🛡️ **Global Error Handler**: Comprehensive error handling with user-friendly messages
 - ⏰ **Background Tasks**: Looping tasks with start/stop control
 - 🌐 **HTTP Session**: Shared aiohttp session for API requests
 - 🔄 **Bot Lifecycle**: Proper startup and shutdown management
@@ -202,7 +205,15 @@ python main.py
 - `!sync` - Sync slash commands
 - `!shutdown` - Shutdown the bot
 - `!info` - Display bot information
-- `!help [command]` - Show help information
+- `!leaderboard` - Demo paginated leaderboard (showcases menu system)
+
+### Help Commands (Everyone)
+
+- `!help` - Interactive help menu with dropdown categories
+- `!help <command>` - Detailed help for a specific command
+- `!help <category>` - Show commands in a category (e.g., `!help mod`)
+- `!help commands` - View all commands in paginated format
+- `!about` - Detailed bot information and statistics
 
 ### Moderation Commands (Administrator only)
 
@@ -320,6 +331,88 @@ async def my_custom_task(self):
 async def before_my_custom_task(self):
     await self.bot.wait_until_ready()
 ```
+
+### Interactive Menu System
+
+The bot includes a powerful menu system for creating beautiful, interactive Discord interfaces:
+
+#### **Menu Types Available:**
+
+1. **Paginated Embeds**: Navigate through multiple pages with buttons
+2. **Select Menus**: Dropdown menus for category selection
+3. **Confirmation Dialogs**: Yes/No prompts for important actions
+4. **Leaderboards**: Automatically formatted, paginated leaderboards
+
+#### **Using the Menu System:**
+
+```python
+from utils.menus import (
+    EmbedBuilder,
+    LeaderboardBuilder,
+    send_paginated_embed,
+    send_confirmation
+)
+
+# Create beautiful embeds
+embed = EmbedBuilder.create_success_embed(
+    title="Success",
+    description="Operation completed successfully!"
+)
+
+# Create paginated leaderboard
+leaderboard_data = [
+    {"name": "Player1", "score": 1000, "emoji": "👑"},
+    {"name": "Player2", "score": 850, "emoji": "⚔️"},
+    # ... more entries
+]
+
+embeds = LeaderboardBuilder.create_leaderboard(
+    title="🏆 Top Players",
+    entries=leaderboard_data,
+    key_field="name",
+    value_field="score",
+    emoji_field="emoji"
+)
+
+# Send with navigation buttons
+await send_paginated_embed(ctx, embeds)
+
+# Confirmation dialog
+result = await send_confirmation(ctx, embed)
+if result:
+    await ctx.send("Confirmed!")
+```
+
+#### **Menu Features:**
+
+- ✅ **User-specific interactions** - Only the command user can interact
+- ✅ **Automatic timeout** - Menus disable after inactivity
+- ✅ **Permission checks** - Built-in interaction validation
+- ✅ **Error handling** - Graceful handling of Discord API errors
+- ✅ **Customizable styling** - Colors, emojis, and formatting options
+
+### Error Handling System
+
+The bot includes a comprehensive global error handler that:
+
+#### **Features:**
+
+- 🔍 **Intelligent Error Detection** - Identifies specific error types
+- 💬 **User-Friendly Messages** - Clear explanations instead of technical errors
+- 📝 **Comprehensive Logging** - Detailed error logs for debugging
+- 🔄 **Graceful Recovery** - Bot continues running after most errors
+- ⚡ **Fast Response** - Quick error message delivery
+
+#### **Error Types Handled:**
+
+- **Command Errors**: Missing arguments, invalid permissions, cooldowns
+- **Discord API Errors**: Rate limits, permission issues, not found errors
+- **Bot Errors**: Extension loading issues, database connection problems
+- **User Errors**: Invalid input, missing permissions, command not found
+
+#### **KeyboardInterrupt Protection:**
+
+The error handler specifically allows `KeyboardInterrupt` to pass through, ensuring you can always stop the bot with Ctrl+C while catching all other errors gracefully.
 
 ### Global HTTP Session
 

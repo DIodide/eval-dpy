@@ -3,6 +3,10 @@ from discord.ext import commands
 import importlib
 import sys
 from utils.checks import is_admin
+from utils.menus import EmbedBuilder, LeaderboardBuilder, send_paginated_embed
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Admin(commands.Cog):
@@ -11,177 +15,252 @@ class Admin(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name="reload")
+    @commands.group(name="reload", aliases=["r"])
     @is_admin()
-    async def reload_cog(self, ctx, cog_name: str = None):
-        """Reload a specific cog or all cogs"""
-        if cog_name is None:
-            await ctx.send(
-                "❌ Please specify a cog name or use `reload all` to reload all cogs."
-            )
-            return
+    async def reload_commands(self, ctx):
+        """Reload bot cogs and modules"""
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help(ctx.command)
 
-        if cog_name.lower() == "all":
-            await self.reload_all_cogs(ctx)
-            return
+    @reload_commands.command(name="all")
+    @is_admin()
+    async def reload_all(self, ctx):
+        """Reload all cogs"""
+        embed = EmbedBuilder.create_embed(
+            title="🔄 Reloading All Cogs",
+            description="Attempting to reload all loaded cogs...",
+            color=discord.Color.orange(),
+        )
+        message = await ctx.send(embed=embed)
 
-        # Add 'cogs.' prefix if not present
-        if not cog_name.startswith("cogs."):
-            cog_name = f"cogs.{cog_name}"
-
-        try:
-            await self.bot.reload_extension(cog_name)
-
-            embed = discord.Embed(
-                title="Cog Reloaded",
-                description=f"Successfully reloaded `{cog_name}`",
-                color=discord.Color.green(),
-            )
-            await ctx.send(embed=embed)
-
-        except commands.ExtensionNotLoaded:
-            await ctx.send(f"❌ Cog `{cog_name}` is not loaded!")
-        except commands.ExtensionNotFound:
-            await ctx.send(f"❌ Cog `{cog_name}` not found!")
-        except Exception as e:
-            await ctx.send(f"❌ Failed to reload `{cog_name}`: {e}")
-
-    async def reload_all_cogs(self, ctx):
-        """Reload all loaded cogs"""
-        loaded_cogs = list(self.bot.extensions.keys())
-        success_count = 0
+        success_cogs = []
         failed_cogs = []
 
-        for cog_name in loaded_cogs:
+        # Get list of currently loaded cogs
+        cog_names = list(self.bot.cogs.keys())
+
+        for cog_name in cog_names:
             try:
-                await self.bot.reload_extension(cog_name)
-                success_count += 1
+                # Convert cog name to module path
+                module_name = f"cogs.{cog_name.lower()}"
+                await self.bot.reload_extension(module_name)
+                success_cogs.append(cog_name)
+                logger.info("Reloaded %s", module_name)
             except Exception as e:
-                failed_cogs.append(f"{cog_name}: {e}")
+                failed_cogs.append(f"{cog_name}: {str(e)}")
+                logger.error("Failed to reload %s: %s", cog_name, e)
 
-        embed = discord.Embed(
-            title="Bulk Cog Reload",
-            color=discord.Color.green() if not failed_cogs else discord.Color.orange(),
-        )
+        # Update embed with results
+        if success_cogs and not failed_cogs:
+            embed = EmbedBuilder.create_success_embed(
+                title="✅ All Cogs Reloaded",
+                description=f"Successfully reloaded {len(success_cogs)} cogs:\n"
+                + "\n".join(f"• {cog}" for cog in success_cogs),
+            )
+        elif success_cogs and failed_cogs:
+            embed = EmbedBuilder.create_warning_embed(
+                title="⚠️ Partial Reload Success",
+                description=f"**Successful ({len(success_cogs)}):**\n"
+                + "\n".join(f"• {cog}" for cog in success_cogs)
+                + f"\n\n**Failed ({len(failed_cogs)}):**\n"
+                + "\n".join(f"• {cog}" for cog in failed_cogs[:5]),
+            )
+        else:
+            embed = EmbedBuilder.create_error_embed(
+                title="❌ Reload Failed",
+                description="Failed to reload all cogs:\n"
+                + "\n".join(f"• {cog}" for cog in failed_cogs[:5]),
+            )
 
-        embed.add_field(
-            name="Success",
-            value=f"Reloaded {success_count}/{len(loaded_cogs)} cogs",
-            inline=False,
-        )
+        await message.edit(embed=embed)
 
-        if failed_cogs:
-            failed_text = "\n".join(failed_cogs[:5])  # Limit to first 5 failures
-            if len(failed_cogs) > 5:
-                failed_text += f"\n... and {len(failed_cogs) - 5} more"
-            embed.add_field(name="Failures", value=f"```{failed_text}```", inline=False)
+    @reload_commands.command()
+    @is_admin()
+    async def cog(self, ctx, cog_name: str):
+        """Reload a specific cog"""
+        try:
+            module_name = f"cogs.{cog_name.lower()}"
+            await self.bot.reload_extension(module_name)
 
-        await ctx.send(embed=embed)
+            embed = EmbedBuilder.create_success_embed(
+                title="✅ Cog Reloaded",
+                description=f"Successfully reloaded `{cog_name}`",
+            )
+            await ctx.send(embed=embed)
+            logger.info("Reloaded %s", module_name)
+        except Exception as e:
+            embed = EmbedBuilder.create_error_embed(
+                title="❌ Reload Failed",
+                description=f"Failed to reload `{cog_name}`: {str(e)}",
+            )
+            await ctx.send(embed=embed)
+            logger.error("Failed to reload %s: %s", cog_name, e)
 
     @commands.command(name="load")
     @is_admin()
     async def load_cog(self, ctx, cog_name: str):
         """Load a cog"""
-        # Add 'cogs.' prefix if not present
-        if not cog_name.startswith("cogs."):
-            cog_name = f"cogs.{cog_name}"
-
         try:
-            await self.bot.load_extension(cog_name)
+            module_name = f"cogs.{cog_name.lower()}"
+            await self.bot.load_extension(module_name)
 
-            embed = discord.Embed(
-                title="Cog Loaded",
-                description=f"Successfully loaded `{cog_name}`",
-                color=discord.Color.green(),
+            embed = EmbedBuilder.create_success_embed(
+                title="✅ Cog Loaded", description=f"Successfully loaded `{cog_name}`"
             )
             await ctx.send(embed=embed)
-
-        except commands.ExtensionAlreadyLoaded:
-            await ctx.send(f"❌ Cog `{cog_name}` is already loaded!")
-        except commands.ExtensionNotFound:
-            await ctx.send(f"❌ Cog `{cog_name}` not found!")
+            logger.info("Loaded %s", module_name)
         except Exception as e:
-            await ctx.send(f"❌ Failed to load `{cog_name}`: {e}")
+            embed = EmbedBuilder.create_error_embed(
+                title="❌ Load Failed",
+                description=f"Failed to load `{cog_name}`: {str(e)}",
+            )
+            await ctx.send(embed=embed)
+            logger.error("Failed to load %s: %s", cog_name, e)
 
     @commands.command(name="unload")
     @is_admin()
     async def unload_cog(self, ctx, cog_name: str):
         """Unload a cog"""
-        # Add 'cogs.' prefix if not present
-        if not cog_name.startswith("cogs."):
-            cog_name = f"cogs.{cog_name}"
-
-        # Prevent unloading the admin cog
-        if cog_name == "cogs.admin":
-            await ctx.send("❌ Cannot unload the admin cog!")
-            return
-
         try:
-            await self.bot.unload_extension(cog_name)
+            module_name = f"cogs.{cog_name.lower()}"
+            await self.bot.unload_extension(module_name)
 
-            embed = discord.Embed(
-                title="Cog Unloaded",
+            embed = EmbedBuilder.create_success_embed(
+                title="✅ Cog Unloaded",
                 description=f"Successfully unloaded `{cog_name}`",
-                color=discord.Color.orange(),
             )
             await ctx.send(embed=embed)
-
-        except commands.ExtensionNotLoaded:
-            await ctx.send(f"❌ Cog `{cog_name}` is not loaded!")
+            logger.info("Unloaded %s", module_name)
         except Exception as e:
-            await ctx.send(f"❌ Failed to unload `{cog_name}`: {e}")
+            embed = EmbedBuilder.create_error_embed(
+                title="❌ Unload Failed",
+                description=f"Failed to unload `{cog_name}`: {str(e)}",
+            )
+            await ctx.send(embed=embed)
+            logger.error("Failed to unload %s: %s", cog_name, e)
 
-    @commands.command(name="cogs", aliases=["extensions"])
+    @commands.command(name="cogs")
     @is_admin()
     async def list_cogs(self, ctx):
         """List all loaded cogs"""
-        loaded_cogs = list(self.bot.extensions.keys())
+        if not self.bot.cogs:
+            embed = EmbedBuilder.create_warning_embed(
+                title="No Cogs Loaded",
+                description="There are currently no cogs loaded.",
+            )
+        else:
+            cog_list = []
+            for cog_name, cog in self.bot.cogs.items():
+                command_count = len(
+                    [cmd for cmd in cog.get_commands() if not cmd.hidden]
+                )
+                cog_list.append(f"• **{cog_name}** - {command_count} commands")
 
-        if not loaded_cogs:
-            await ctx.send("No cogs are currently loaded.")
-            return
-
-        embed = discord.Embed(
-            title="Loaded Cogs",
-            description="\n".join([f"• `{cog}`" for cog in loaded_cogs]),
-            color=discord.Color.blue(),
-        )
-        embed.set_footer(text=f"Total: {len(loaded_cogs)} cogs")
+            embed = EmbedBuilder.create_info_embed(
+                title=f"📦 Loaded Cogs ({len(self.bot.cogs)})",
+                description="\n".join(cog_list),
+            )
 
         await ctx.send(embed=embed)
 
     @commands.command(name="sync")
     @is_admin()
     async def sync_commands(self, ctx):
-        """Sync slash commands (if using hybrid commands)"""
+        """Sync application commands"""
         try:
+            embed = EmbedBuilder.create_embed(
+                title="🔄 Syncing Commands",
+                description="Syncing application commands with Discord...",
+                color=discord.Color.orange(),
+            )
+            message = await ctx.send(embed=embed)
+
             synced = await self.bot.tree.sync()
 
-            embed = discord.Embed(
-                title="Commands Synced",
-                description=f"Synced {len(synced)} command(s)",
-                color=discord.Color.green(),
+            embed = EmbedBuilder.create_success_embed(
+                title="✅ Commands Synced",
+                description=f"Successfully synced {len(synced)} application commands.",
+            )
+            await message.edit(embed=embed)
+            logger.info("Synced %d application commands", len(synced))
+        except Exception as e:
+            embed = EmbedBuilder.create_error_embed(
+                title="❌ Sync Failed", description=f"Failed to sync commands: {str(e)}"
             )
             await ctx.send(embed=embed)
+            logger.error("Failed to sync commands: %s", e)
 
-        except Exception as e:
-            await ctx.send(f"❌ Failed to sync commands: {e}")
-
-    @commands.command(name="shutdown")
+    @commands.command(name="shutdown", aliases=["stop", "quit"])
     @is_admin()
     async def shutdown_bot(self, ctx):
         """Shutdown the bot"""
-        embed = discord.Embed(
-            title="Bot Shutdown",
-            description="Shutting down bot...",
-            color=discord.Color.red(),
+        embed = EmbedBuilder.create_warning_embed(
+            title="🔌 Shutting Down", description="Bot is shutting down... Goodbye! 👋"
         )
         await ctx.send(embed=embed)
+        logger.info("Bot shutdown requested by %s", ctx.author)
         await self.bot.close()
 
+    @commands.command(name="leaderboard", aliases=["lb", "top"])
+    @is_admin()
+    async def demo_leaderboard(self, ctx):
+        """Demo leaderboard command showcasing the menu system"""
+        # Create sample leaderboard data
+        sample_data = [
+            {"name": "Alice", "score": 9847, "emoji": "👑"},
+            {"name": "Bob", "score": 8932, "emoji": "⚔️"},
+            {"name": "Charlie", "score": 7651, "emoji": "🏹"},
+            {"name": "Diana", "score": 7203, "emoji": "🛡️"},
+            {"name": "Eve", "score": 6789, "emoji": "✨"},
+            {"name": "Frank", "score": 6234, "emoji": "🔥"},
+            {"name": "Grace", "score": 5987, "emoji": "❄️"},
+            {"name": "Henry", "score": 5543, "emoji": "⚡"},
+            {"name": "Ivy", "score": 5012, "emoji": "🌟"},
+            {"name": "Jack", "score": 4876, "emoji": "🎯"},
+            {"name": "Kate", "score": 4234, "emoji": "💎"},
+            {"name": "Liam", "score": 3987, "emoji": "🏆"},
+            {"name": "Maya", "score": 3654, "emoji": "🎪"},
+            {"name": "Noah", "score": 3321, "emoji": "🎨"},
+            {"name": "Olivia", "score": 2998, "emoji": "🎭"},
+            {"name": "Peter", "score": 2765, "emoji": "🎪"},
+            {"name": "Quinn", "score": 2432, "emoji": "🎵"},
+            {"name": "Ruby", "score": 2198, "emoji": "💫"},
+            {"name": "Sam", "score": 1987, "emoji": "🌙"},
+            {"name": "Tina", "score": 1765, "emoji": "☀️"},
+            {"name": "Uma", "score": 1543, "emoji": "🌈"},
+            {"name": "Victor", "score": 1321, "emoji": "🦋"},
+            {"name": "Wendy", "score": 1098, "emoji": "🌸"},
+            {"name": "Xavier", "score": 876, "emoji": "🍀"},
+            {"name": "Yara", "score": 654, "emoji": "🎀"},
+        ]
+
+        # Create leaderboard embeds
+        embeds = LeaderboardBuilder.create_leaderboard(
+            title="🏆 Demo Leaderboard",
+            entries=sample_data,
+            page_size=10,
+            key_field="name",
+            value_field="score",
+            emoji_field="emoji",
+            color=discord.Color.gold(),
+            thumbnail="https://cdn.discordapp.com/emojis/1234567890.png",  # Optional
+        )
+
+        # Send paginated leaderboard
+        await send_paginated_embed(ctx, embeds, user=ctx.author)
+
+        # Log the action if database is available
+        if self.bot.db:
+            await self.bot.db.log_action(
+                guild_id=ctx.guild.id if ctx.guild else 0,
+                user_id=ctx.author.id,
+                action="demo_leaderboard_viewed",
+                details={"command": "leaderboard", "entries": len(sample_data)},
+            )
+
     @commands.command(name="info")
-    async def bot_info(self, ctx):
-        """Display bot information"""
+    async def show_bot_info(self, ctx):
+        """Display detailed bot information"""
         embed = discord.Embed(title="Bot Information", color=discord.Color.blue())
 
         embed.add_field(name="Bot Name", value=self.bot.user.name, inline=True)
@@ -244,7 +323,7 @@ class Admin(commands.Cog):
         await ctx.send(embed=embed)
 
     # Error handling
-    @reload_cog.error
+    @reload_commands.error
     @load_cog.error
     @unload_cog.error
     @list_cogs.error
