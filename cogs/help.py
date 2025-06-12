@@ -37,39 +37,49 @@ class HelpCommand(commands.Cog):
             if command.hidden:
                 continue
 
+            # Skip if command has no cog (shouldn't happen but safety check)
+            if not hasattr(command, "cog") or not command.cog:
+                categories["🔧 Utility"].append(command)
+                continue
+
+            # Get cog name safely
+            cog_name = command.cog.__class__.__name__ if command.cog else "Unknown"
+
             # Categorize based on cog name
-            if command.cog_name == "Moderation":
+            if cog_name == "Moderation":
                 categories["🛡️ Moderation"].append(command)
-            elif command.cog_name == "Admin":
+            elif cog_name == "Admin":
                 categories["⚡ Admin"].append(command)
-            elif command.cog_name == "Tasks":
+            elif cog_name == "Tasks":
                 categories["🔄 Tasks"].append(command)
-            elif command.cog_name == "DatabaseDemo":
+            elif cog_name == "DatabaseDemo":
                 categories["🗄️ Database"].append(command)
-            elif command.cog_name == "HelpCommand":
+            elif cog_name == "HelpCommand":
                 categories["❓ Help"].append(command)
             else:
                 categories["🔧 Utility"].append(command)
 
-        # Remove empty categories
+        # Remove empty categories and return
         return {k: v for k, v in categories.items() if v}
 
     def create_main_help_embed(self) -> discord.Embed:
         """Create the main help embed"""
+        description = (
+            "Welcome to the help system! This bot features modular commands "
+            "organized into different categories.\n\n"
+            "**Navigation:**\n"
+            "• Use the dropdown menu below to browse categories\n"
+            "• Click on category names for detailed command lists\n"
+            "• Use `!help <command>` for specific command help\n\n"
+            "**Quick Links:**\n"
+            "• `!help commands` - View all commands\n"
+            "• `!help admin` - Admin-only commands\n"
+            "• `!help mod` - Moderation commands"
+        )
+
         embed = EmbedBuilder.create_embed(
             title="🤖 Bot Help Menu",
-            description=(
-                "Welcome to the help system! This bot features modular commands "
-                "organized into different categories.\n\n"
-                "**Navigation:**\n"
-                "• Use the dropdown menu below to browse categories\n"
-                "• Click on category names for detailed command lists\n"
-                "• Use `!help <command>` for specific command help\n\n"
-                "**Quick Links:**\n"
-                "• `!help commands` - View all commands\n"
-                "• `!help admin` - Admin-only commands\n"
-                "• `!help mod` - Moderation commands"
-            ),
+            description=description,
             color=discord.Color.blue(),
             thumbnail=self.bot.user.display_avatar.url if self.bot.user else None,
             timestamp=True,
@@ -77,27 +87,31 @@ class HelpCommand(commands.Cog):
 
         # Add bot statistics
         guild_count = len(self.bot.guilds)
-        user_count = sum(guild.member_count for guild in self.bot.guilds)
+        user_count = sum(guild.member_count or 0 for guild in self.bot.guilds)
         command_count = len([cmd for cmd in self.bot.commands if not cmd.hidden])
+
+        stats_value = (
+            f"**Servers:** {guild_count:,}\n"
+            f"**Users:** {user_count:,}\n"
+            f"**Commands:** {command_count}"
+        )
 
         embed.add_field(
             name="📊 Bot Statistics",
-            value=(
-                f"**Servers:** {guild_count:,}\n"
-                f"**Users:** {user_count:,}\n"
-                f"**Commands:** {command_count}"
-            ),
+            value=stats_value,
             inline=True,
         )
 
-        # Add useful information
+        # Add useful information - make this shorter to avoid limits
+        links_value = (
+            "[Support](https://discord.gg/support)\n"
+            "[Docs](https://github.com/repo)\n"
+            "[Invite](https://discord.com/invite)"
+        )
+
         embed.add_field(
-            name="🔗 Useful Links",
-            value=(
-                "[Support Server](https://discord.gg/your-server)\n"
-                "[Documentation](https://github.com/your-repo)\n"
-                "[Invite Bot](https://discord.com/oauth2/authorize)"
-            ),
+            name="🔗 Links",
+            value=links_value,
             inline=True,
         )
 
@@ -115,24 +129,44 @@ class HelpCommand(commands.Cog):
             timestamp=True,
         )
 
+        # Discord limits:
+        # - Embed description: 4096 characters
+        # - Field value: 1024 characters
+        # - Total embed: 6000 characters
+        # - Max 25 fields per embed
+
+        field_count = 0
         for command in commands_list:
+            if field_count >= 25:  # Discord's field limit
+                break
+
             # Get command signature
             signature = f"!{command.qualified_name}"
             if command.signature:
                 signature += f" {command.signature}"
 
-            # Get short description
+            # Truncate signature if too long
+            if len(signature) > 256:  # Field name limit
+                signature = signature[:253] + "..."
+
+            # Get short description and truncate if needed
             description = command.short_doc or "No description available"
+            if len(description) > 1020:  # Leave room for formatting
+                description = description[:1017] + "..."
 
             embed.add_field(
                 name=f"`{signature}`",
                 value=description,
                 inline=False,
             )
+            field_count += 1
 
-        embed.set_footer(
-            text=f"Use !help <command> for detailed information • {len(commands_list)} commands"
-        )
+        # Truncate footer if needed
+        footer_text = f"Use !help <command> for detailed information • {len(commands_list)} commands"
+        if len(footer_text) > 2048:  # Footer text limit
+            footer_text = footer_text[:2045] + "..."
+
+        embed.set_footer(text=footer_text)
         return embed
 
     def create_command_embed(self, command: commands.Command) -> discord.Embed:
@@ -232,6 +266,12 @@ class HelpCommand(commands.Cog):
                 embed = self.create_main_help_embed()
                 categories = self.get_command_categories()
 
+                # Only create select menu if we have categories
+                if not categories:
+                    # No categories available, show simple message
+                    await ctx.send("❌ No commands are currently available.")
+                    return
+
                 # Create select options
                 options = [
                     discord.SelectOption(
@@ -245,33 +285,70 @@ class HelpCommand(commands.Cog):
                 for category_name in categories.keys():
                     # Extract emoji from category name
                     emoji = category_name.split()[0] if category_name else "📁"
-                    clean_name = " ".join(category_name.split()[1:])
+                    clean_name = (
+                        " ".join(category_name.split()[1:])
+                        if len(category_name.split()) > 1
+                        else category_name
+                    )
+
+                    # Ensure we have a valid clean name
+                    if not clean_name:
+                        clean_name = "Unknown"
+
+                    # Truncate label if too long (Discord limit is 100 chars)
+                    if len(clean_name) > 95:
+                        clean_name = clean_name[:92] + "..."
+
+                    # Truncate description if too long (Discord limit is 100 chars)
+                    description = f"View all {clean_name.lower()} commands"
+                    if len(description) > 95:
+                        description = description[:92] + "..."
 
                     options.append(
                         discord.SelectOption(
                             label=clean_name,
                             value=category_name,
-                            description=f"View all {clean_name.lower()} commands",
+                            description=description,
                             emoji=emoji,
                         )
                     )
 
-                await send_select_menu(
-                    ctx,
-                    embed,
-                    options,
-                    self.create_help_select_callback,
-                    placeholder="🔍 Choose a category to explore...",
-                    user=ctx.author,
-                    timeout=300,
-                )
+                # Ensure we have at least one option besides main menu
+                if len(options) <= 1:
+                    await ctx.send("❌ No command categories are currently available.")
+                    return
+
+                # Limit to 25 options (Discord's limit)
+                if len(options) > 25:
+                    options = options[:25]
+
+                try:
+                    await send_select_menu(
+                        ctx,
+                        embed,
+                        options,
+                        self.create_help_select_callback,
+                        placeholder="🔍 Choose a category to explore...",
+                        user=ctx.author,
+                        timeout=300,
+                    )
+                except discord.HTTPException as e:
+                    logger.error("Failed to send select menu: %s", e)
+                    # Fallback: send simple embed without select menu
+                    await ctx.send(embed=embed)
 
             else:
                 # Look for specific command
                 command = self.bot.get_command(command_or_category.lower())
                 if command and not command.hidden:
                     embed = self.create_command_embed(command)
-                    await ctx.send(embed=embed)
+                    try:
+                        await ctx.send(embed=embed)
+                    except discord.HTTPException as e:
+                        # Fallback for embed issues
+                        await ctx.send(
+                            f"**{command.qualified_name}**: {command.short_doc or 'No description'}"
+                        )
                     return
 
                 # Look for category shortcuts
@@ -303,19 +380,62 @@ class HelpCommand(commands.Cog):
                                 embeds.append(embed)
 
                         if embeds:
-                            await send_paginated_embed(ctx, embeds, user=ctx.author)
+                            try:
+                                await send_paginated_embed(ctx, embeds, user=ctx.author)
+                            except discord.HTTPException:
+                                # Fallback: send simple text list
+                                command_list = []
+                                for commands_list in categories.values():
+                                    for cmd in commands_list:
+                                        command_list.append(
+                                            f"`!{cmd.qualified_name}` - {cmd.short_doc or 'No description'}"
+                                        )
+
+                                # Split into chunks to avoid message length limits
+                                chunks = []
+                                current_chunk = ""
+                                for cmd_info in command_list:
+                                    if (
+                                        len(current_chunk) + len(cmd_info) + 1 > 1900
+                                    ):  # Leave room for formatting
+                                        chunks.append(current_chunk)
+                                        current_chunk = cmd_info
+                                    else:
+                                        current_chunk += (
+                                            "\n" + cmd_info
+                                            if current_chunk
+                                            else cmd_info
+                                        )
+
+                                if current_chunk:
+                                    chunks.append(current_chunk)
+
+                                for i, chunk in enumerate(chunks):
+                                    await ctx.send(
+                                        f"**Commands (Part {i + 1}/{len(chunks)}):**\n{chunk}"
+                                    )
                         else:
-                            embed = EmbedBuilder.create_warning_embed(
-                                "No Commands", "No commands are currently available."
-                            )
-                            await ctx.send(embed=embed)
+                            await ctx.send("⚠️ No commands are currently available.")
                     else:
                         category_name = category_shortcuts[lookup]
                         if category_name in categories:
                             embed = self.create_category_embed(
                                 category_name, categories[category_name]
                             )
-                            await ctx.send(embed=embed)
+                            try:
+                                await ctx.send(embed=embed)
+                            except discord.HTTPException:
+                                # Fallback: send simple text list
+                                command_list = []
+                                for cmd in categories[category_name]:
+                                    command_list.append(
+                                        f"`!{cmd.qualified_name}` - {cmd.short_doc or 'No description'}"
+                                    )
+
+                                await ctx.send(
+                                    f"**{category_name} Commands:**\n"
+                                    + "\n".join(command_list[:20])
+                                )  # Limit to 20 commands
                         else:
                             embed = EmbedBuilder.create_error_embed(
                                 "Category Not Found",
@@ -331,12 +451,22 @@ class HelpCommand(commands.Cog):
                     )
                     await ctx.send(embed=embed)
 
+        except discord.HTTPException as e:
+            logger.error("Discord API error in help command: %s", e)
+            await ctx.send(
+                "❌ There was an issue displaying the help menu. Please try again or use `!help <command>` for specific command help."
+            )
         except Exception as e:
             logger.error("Error in help command: %s", e)
             embed = EmbedBuilder.create_error_embed(
                 "Help Error", "An error occurred while generating help information."
             )
-            await ctx.send(embed=embed)
+            try:
+                await ctx.send(embed=embed)
+            except discord.HTTPException:
+                await ctx.send(
+                    "❌ An error occurred while generating help information."
+                )
 
     @commands.hybrid_command(name="about", aliases=["info", "botinfo"])
     async def about_command(self, ctx):
@@ -368,7 +498,7 @@ class HelpCommand(commands.Cog):
 
         # Statistics
         guild_count = len(self.bot.guilds)
-        user_count = sum(guild.member_count for guild in self.bot.guilds)
+        user_count = sum(guild.member_count or 0 for guild in self.bot.guilds)
         command_count = len([cmd for cmd in self.bot.commands if not cmd.hidden])
 
         embed.add_field(
