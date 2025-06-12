@@ -14,6 +14,7 @@ A comprehensive Discord bot boilerplate built with discord.py featuring modular 
 - ⏰ **Background Tasks**: Looping tasks with start/stop control
 - 🌐 **HTTP Session**: Shared aiohttp session for API requests
 - 🔄 **Bot Lifecycle**: Proper startup and shutdown management
+- ✅ **Environment Validation**: Automatic validation of configuration before startup
 - 🚀 **Easy Setup**: Automated start scripts for all platforms
 - 🗄️ **Database Integration**: PostgreSQL/Supabase support with connection pooling
 
@@ -104,6 +105,16 @@ These scripts will automatically:
    DATABASE_PASSWORD=your_database_password
    DATABASE_SSL=require
    ```
+
+4. **Environment Validation**:
+   The bot automatically validates your environment configuration before starting. It will check for:
+
+   - **Required variables**: `DISCORD_TOKEN` presence and basic format validation
+   - **Database config**: If any database variables are set, all required ones must be present
+   - **Format validation**: Port numbers, SSL modes, and other format-specific checks
+   - **Common mistakes**: Quotes around tokens, missing .env file, formatting issues
+
+   If validation fails, the bot will display helpful error messages and exit before attempting to start.
 
 ### 3. Getting a Discord Bot Token
 
@@ -402,12 +413,13 @@ async def setup(bot):
 
 1. **Import Errors**: Use the start scripts or install dependencies: `pip install -r requirements.txt`
 2. **Token Issues**: Ensure your token is correctly placed in `.env` file as `DISCORD_TOKEN=your_token_here`
-3. **Database Connection**: Check your database credentials in `.env` file
-4. **Permission Errors**: Make sure the bot has the necessary permissions in your Discord server
-5. **Cog Loading Errors**: Check the console for specific error messages when cogs fail to load
-6. **Environment Variable Issues**: Make sure `.env` file is in the same directory as `main.py`
-7. **Task Errors**: Check console logs for task-specific error messages
-8. **Python Version**: Ensure you have Python 3.8 or higher installed
+3. **Environment Validation Errors**: The bot will display specific validation errors before startup - follow the error messages to fix configuration issues
+4. **Database Connection**: Check your database credentials in `.env` file
+5. **Permission Errors**: Make sure the bot has the necessary permissions in your Discord server
+6. **Cog Loading Errors**: Check the console for specific error messages when cogs fail to load
+7. **Environment Variable Issues**: Make sure `.env` file is in the same directory as `main.py`
+8. **Task Errors**: Check console logs for task-specific error messages
+9. **Python Version**: Ensure you have Python 3.8 or higher installed
 
 ### Database Troubleshooting
 
