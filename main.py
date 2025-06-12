@@ -30,6 +30,9 @@ class DiscordBot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents, help_command=None)
 
         # Global aiohttp session
+        self.riotKey = os.getenv("SECRET_RIOT_API_KEY")
+        self.startggKey = os.getenv("SECRET_STARTGG_PERSONAL_API_KEY")
+        self.ballchasingKey = os.getenv("SECRET_BALLCHASING_API_KEY")
         self.session = None
 
         # Database manager
@@ -53,6 +56,7 @@ class DiscordBot(commands.Bot):
             "cogs.admin",
             "cogs.tasks",
             "cogs.database_demo",
+            "cogs.algorithm"
         ]
 
         for cog in cogs_to_load:
