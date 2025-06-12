@@ -22,25 +22,26 @@ class Tasks(commands.Cog):
         self.api_monitor_task.add_exception_type(Exception)
 
     async def cog_unload(self):
-        """Clean up when cog is unloaded"""
+        """Stop all tasks when the cog is unloaded"""
         logger.info("Stopping all tasks before unloading...")
-        self.stop_all_tasks()
+        stopped_tasks = []
 
-    def stop_all_tasks(self):
-        """Stop all running tasks"""
         tasks_to_stop = [
-            self.example_task_1,
-            self.example_task_2,
-            self.api_monitor_task,
+            ("example_task_1", self.example_task_1),
+            ("example_task_2", self.example_task_2),
+            ("api_monitor_task", self.api_monitor_task),
         ]
 
-        for task in tasks_to_stop:
+        for task_name, task in tasks_to_stop:
             if task.is_running():
                 task.cancel()
-                logger.info(
-                    "Stopped task: %s",
-                    task.get_task().get_name() if task.get_task() else "Unknown",
-                )
+                stopped_tasks.append(task_name)
+                logger.info("Stopped %s", task_name)
+
+        if stopped_tasks:
+            logger.info("Stopped tasks: %s", ", ".join(stopped_tasks))
+        else:
+            logger.info("No running tasks to stop")
 
     # Example Task 1: Simple periodic message
     @tasks.loop(minutes=5)
@@ -145,17 +146,17 @@ class Tasks(commands.Cog):
         logger.error("API Monitor Task encountered an error: %s", error)
 
     # Task Management Commands
-    @commands.group(name="task", aliases=["tasks"])
+    @commands.hybrid_group(name="task")
     @is_admin()
     async def task_commands(self, ctx):
-        """Task management commands"""
+        """Background task management commands"""
         if ctx.invoked_subcommand is None:
             await self.list_tasks(ctx)
 
     @task_commands.command(name="list")
     @is_admin()
     async def list_tasks(self, ctx):
-        """List all available tasks and their status"""
+        """List all available background tasks and their status"""
         tasks_info = [
             ("example_task_1", self.example_task_1, "Simple periodic task (5 min)"),
             ("example_task_2", self.example_task_2, "Status updater task (10 min)"),
@@ -180,7 +181,14 @@ class Tasks(commands.Cog):
     @task_commands.command(name="start")
     @is_admin()
     async def start_task(self, ctx, task_name: str):
-        """Start a specific task"""
+        """
+        Start a specific background task
+
+        Parameters
+        ----------
+        task_name : str
+            The name of the task to start
+        """
         task_map = {
             "example_task_1": self.example_task_1,
             "example_task_2": self.example_task_2,
@@ -220,7 +228,14 @@ class Tasks(commands.Cog):
     @task_commands.command(name="stop")
     @is_admin()
     async def stop_task(self, ctx, task_name: str):
-        """Stop a specific task"""
+        """
+        Stop a specific background task
+
+        Parameters
+        ----------
+        task_name : str
+            The name of the task to stop
+        """
         task_map = {
             "example_task_1": self.example_task_1,
             "example_task_2": self.example_task_2,
@@ -260,7 +275,14 @@ class Tasks(commands.Cog):
     @task_commands.command(name="restart")
     @is_admin()
     async def restart_task(self, ctx, task_name: str):
-        """Restart a specific task"""
+        """
+        Restart a specific background task
+
+        Parameters
+        ----------
+        task_name : str
+            The name of the task to restart
+        """
         task_map = {
             "example_task_1": self.example_task_1,
             "example_task_2": self.example_task_2,
@@ -301,44 +323,43 @@ class Tasks(commands.Cog):
 
     @task_commands.command(name="stopall")
     @is_admin()
-    async def stop_all_tasks_command(self, ctx):
-        """Stop all running tasks"""
+    async def stop_all_tasks(self, ctx):
+        """Stop all running background tasks"""
         stopped_tasks = []
 
-        task_map = {
-            "example_task_1": self.example_task_1,
-            "example_task_2": self.example_task_2,
-            "api_monitor_task": self.api_monitor_task,
-        }
+        tasks_to_stop = [
+            ("example_task_1", self.example_task_1),
+            ("example_task_2", self.example_task_2),
+            ("api_monitor_task", self.api_monitor_task),
+        ]
 
-        for name, task in task_map.items():
+        for task_name, task in tasks_to_stop:
             if task.is_running():
                 task.cancel()
-                stopped_tasks.append(name)
+                stopped_tasks.append(task_name)
+                logger.info("Stopped %s", task_name)
+
+                # Update database status if available
+                if self.bot.db:
+                    await self.bot.db.update_task_status(
+                        task_name, False, "Manually stopped"
+                    )
 
         if stopped_tasks:
             embed = discord.Embed(
-                title="🛑 All Tasks Stopped",
-                description=f"Stopped {len(stopped_tasks)} running tasks",
-                color=discord.Color.red(),
-                timestamp=datetime.utcnow(),
+                title="✅ Tasks Stopped",
+                description=f"Successfully stopped {len(stopped_tasks)} tasks:\n"
+                + "\n".join(f"• {task}" for task in stopped_tasks),
+                color=discord.Color.green(),
             )
-            embed.add_field(
-                name="Stopped Tasks",
-                value="\n".join([f"• {task}" for task in stopped_tasks]),
-                inline=False,
-            )
-            embed.add_field(name="Stopped by", value=ctx.author.mention, inline=True)
         else:
             embed = discord.Embed(
                 title="ℹ️ No Tasks Running",
-                description="No tasks were running to stop",
+                description="No tasks were running.",
                 color=discord.Color.blue(),
-                timestamp=datetime.utcnow(),
             )
 
         await ctx.send(embed=embed)
-        logger.info("All tasks stopped by %s", ctx.author)
 
     # Error handling for task commands
     @task_commands.error

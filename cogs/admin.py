@@ -15,7 +15,7 @@ class Admin(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.group(name="reload", aliases=["r"])
+    @commands.hybrid_group(name="reload", aliases=["r"])
     @is_admin()
     async def reload_commands(self, ctx):
         """Reload bot cogs and modules"""
@@ -77,7 +77,14 @@ class Admin(commands.Cog):
     @reload_commands.command()
     @is_admin()
     async def cog(self, ctx, cog_name: str):
-        """Reload a specific cog"""
+        """
+        Reload a specific cog
+
+        Parameters
+        ----------
+        cog_name : str
+            The name of the cog to reload
+        """
         try:
             module_name = f"cogs.{cog_name.lower()}"
             await self.bot.reload_extension(module_name)
@@ -96,10 +103,17 @@ class Admin(commands.Cog):
             await ctx.send(embed=embed)
             logger.error("Failed to reload %s: %s", cog_name, e)
 
-    @commands.command(name="load")
+    @commands.hybrid_command(name="load")
     @is_admin()
     async def load_cog(self, ctx, cog_name: str):
-        """Load a cog"""
+        """
+        Load a cog
+
+        Parameters
+        ----------
+        cog_name : str
+            The name of the cog to load
+        """
         try:
             module_name = f"cogs.{cog_name.lower()}"
             await self.bot.load_extension(module_name)
@@ -117,10 +131,17 @@ class Admin(commands.Cog):
             await ctx.send(embed=embed)
             logger.error("Failed to load %s: %s", cog_name, e)
 
-    @commands.command(name="unload")
+    @commands.hybrid_command(name="unload")
     @is_admin()
     async def unload_cog(self, ctx, cog_name: str):
-        """Unload a cog"""
+        """
+        Unload a cog
+
+        Parameters
+        ----------
+        cog_name : str
+            The name of the cog to unload
+        """
         try:
             module_name = f"cogs.{cog_name.lower()}"
             await self.bot.unload_extension(module_name)
@@ -139,7 +160,7 @@ class Admin(commands.Cog):
             await ctx.send(embed=embed)
             logger.error("Failed to unload %s: %s", cog_name, e)
 
-    @commands.command(name="cogs")
+    @commands.hybrid_command(name="cogs")
     @is_admin()
     async def list_cogs(self, ctx):
         """List all loaded cogs"""
@@ -163,13 +184,13 @@ class Admin(commands.Cog):
 
         await ctx.send(embed=embed)
 
-    @commands.command(name="sync")
+    @commands.hybrid_command(name="sync")
     @is_admin()
     async def sync_commands(self, ctx):
         """Sync application commands"""
         try:
             embed = EmbedBuilder.create_embed(
-                title="🔄 Syncing Commands",
+                title="�� Syncing Commands",
                 description="Syncing application commands with Discord...",
                 color=discord.Color.orange(),
             )
@@ -190,7 +211,7 @@ class Admin(commands.Cog):
             await ctx.send(embed=embed)
             logger.error("Failed to sync commands: %s", e)
 
-    @commands.command(name="shutdown", aliases=["stop", "quit"])
+    @commands.hybrid_command(name="shutdown", aliases=["stop", "quit"])
     @is_admin()
     async def shutdown_bot(self, ctx):
         """Shutdown the bot"""
@@ -201,7 +222,7 @@ class Admin(commands.Cog):
         logger.info("Bot shutdown requested by %s", ctx.author)
         await self.bot.close()
 
-    @commands.command(name="leaderboard", aliases=["lb", "top"])
+    @commands.hybrid_command(name="leaderboard", aliases=["lb", "top"])
     @is_admin()
     async def demo_leaderboard(self, ctx):
         """Demo leaderboard command showcasing the menu system"""
@@ -257,70 +278,6 @@ class Admin(commands.Cog):
                 action="demo_leaderboard_viewed",
                 details={"command": "leaderboard", "entries": len(sample_data)},
             )
-
-    @commands.command(name="info")
-    async def show_bot_info(self, ctx):
-        """Display detailed bot information"""
-        embed = discord.Embed(title="Bot Information", color=discord.Color.blue())
-
-        embed.add_field(name="Bot Name", value=self.bot.user.name, inline=True)
-        embed.add_field(name="Bot ID", value=self.bot.user.id, inline=True)
-        embed.add_field(name="Guilds", value=len(self.bot.guilds), inline=True)
-        embed.add_field(name="Users", value=len(self.bot.users), inline=True)
-        embed.add_field(name="Cogs Loaded", value=len(self.bot.extensions), inline=True)
-        embed.add_field(
-            name="Latency", value=f"{round(self.bot.latency * 1000)}ms", inline=True
-        )
-
-        embed.set_thumbnail(url=self.bot.user.display_avatar.url)
-        embed.set_footer(text=f"Discord.py {discord.__version__}")
-
-        await ctx.send(embed=embed)
-
-    @commands.command(name="help")
-    async def custom_help(self, ctx, command_name: str = None):
-        """Display help information"""
-        if command_name:
-            command = self.bot.get_command(command_name)
-            if command:
-                embed = discord.Embed(
-                    title=f"Help: {command.name}",
-                    description=command.help or "No description available",
-                    color=discord.Color.blue(),
-                )
-                embed.add_field(
-                    name="Usage",
-                    value=f"`!{command.name} {command.signature}`",
-                    inline=False,
-                )
-                if command.aliases:
-                    embed.add_field(
-                        name="Aliases", value=", ".join(command.aliases), inline=False
-                    )
-            else:
-                embed = discord.Embed(
-                    title="Command Not Found",
-                    description=f"Command `{command_name}` not found.",
-                    color=discord.Color.red(),
-                )
-        else:
-            embed = discord.Embed(
-                title="Bot Commands",
-                description="Use `!help <command>` for detailed information about a command.",
-                color=discord.Color.blue(),
-            )
-
-            # Group commands by cog
-            for cog_name, cog in self.bot.cogs.items():
-                commands_list = [
-                    cmd.name for cmd in cog.get_commands() if not cmd.hidden
-                ]
-                if commands_list:
-                    embed.add_field(
-                        name=cog_name, value=", ".join(commands_list), inline=False
-                    )
-
-        await ctx.send(embed=embed)
 
     # Error handling
     @reload_commands.error

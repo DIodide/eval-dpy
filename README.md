@@ -14,6 +14,7 @@ A comprehensive Discord bot boilerplate built with discord.py featuring modular 
 - 🎛️ **Interactive Menus**: Paginated embeds, dropdowns, and confirmation dialogs
 - ❓ **Advanced Help System**: Interactive help menus with categorized commands
 - 🛡️ **Global Error Handler**: Comprehensive error handling with user-friendly messages
+- ⚡ **Hybrid Commands**: All commands work as both prefix commands (!) and slash commands (/)
 - ⏰ **Background Tasks**: Looping tasks with start/stop control
 - 🌐 **HTTP Session**: Shared aiohttp session for API requests
 - 🔄 **Bot Lifecycle**: Proper startup and shutdown management
@@ -195,44 +196,45 @@ python main.py
 
 ## Commands
 
+**Note**: All commands work as both traditional prefix commands (e.g., `!help`) and modern slash commands (e.g., `/help`). Slash commands provide better autocomplete and parameter validation.
+
 ### Admin Commands (Administrator only)
 
-- `!reload <cog_name>` - Reload a specific cog
-- `!reload all` - Reload all cogs
-- `!load <cog_name>` - Load a cog
-- `!unload <cog_name>` - Unload a cog
-- `!cogs` - List all loaded cogs
-- `!sync` - Sync slash commands
-- `!shutdown` - Shutdown the bot
-- `!info` - Display bot information
-- `!leaderboard` - Demo paginated leaderboard (showcases menu system)
+- `!reload <cog_name>` / `/reload cog:<cog_name>` - Reload a specific cog
+- `!reload all` / `/reload all` - Reload all cogs
+- `!load <cog_name>` / `/load cog_name:<cog_name>` - Load a cog
+- `!unload <cog_name>` / `/unload cog_name:<cog_name>` - Unload a cog
+- `!cogs` / `/cogs` - List all loaded cogs
+- `!sync` / `/sync` - Sync slash commands
+- `!shutdown` / `/shutdown` - Shutdown the bot
+- `!leaderboard` / `/leaderboard` - Demo paginated leaderboard (showcases menu system)
 
 ### Help Commands (Everyone)
 
-- `!help` - Interactive help menu with dropdown categories
-- `!help <command>` - Detailed help for a specific command
-- `!help <category>` - Show commands in a category (e.g., `!help mod`)
-- `!help commands` - View all commands in paginated format
-- `!about` - Detailed bot information and statistics
+- `!help` / `/help` - Interactive help menu with dropdown categories
+- `!help <command>` / `/help command_or_category:<command>` - Detailed help for a specific command
+- `!help <category>` / `/help command_or_category:<category>` - Show commands in a category (e.g., `!help mod`)
+- `!help commands` / `/help command_or_category:commands` - View all commands in paginated format
+- `!about` / `/about` - Detailed bot information and statistics (aliases: `!info`, `!botinfo`)
 
 ### Moderation Commands (Administrator only)
 
-- `!kick <member> [reason]` - Kick a member
-- `!ban <member> [reason]` - Ban a member
-- `!unban <member#discriminator>` - Unban a member
-- `!mute <member> <minutes> [reason]` - Timeout a member
-- `!unmute <member>` - Remove timeout from a member
-- `!purge <amount>` - Delete messages (max 100)
-- `!slowmode <seconds>` - Set channel slowmode (0-21600 seconds)
-- `!warn <member> [reason]` - Warn a member
+- `!kick <member> [reason]` / `/kick member:<member> reason:[reason]` - Kick a member
+- `!ban <member> [reason]` / `/ban member:<member> reason:[reason]` - Ban a member
+- `!unban <user> [reason]` / `/unban user:<user> reason:[reason]` - Unban a user
+- `!mute <member> <minutes> [reason]` / `/mute member:<member> duration:<minutes> reason:[reason]` - Timeout a member
+- `!unmute <member> [reason]` / `/unmute member:<member> reason:[reason]` - Remove timeout from a member
+- `!purge <amount>` / `/purge amount:<amount>` - Delete messages (max 100)
+- `!slowmode <seconds>` / `/slowmode seconds:<seconds>` - Set channel slowmode (0-21600 seconds)
+- `!warn <member> [reason]` / `/warn member:<member> reason:[reason]` - Warn a member
 
 ### Task Management Commands (Administrator only)
 
-- `!task` or `!task list` - List all available tasks and their status
-- `!task start <task_name>` - Start a specific background task
-- `!task stop <task_name>` - Stop a running background task
-- `!task restart <task_name>` - Restart a background task
-- `!task stopall` - Stop all running background tasks
+- `!task` / `/task` - List all available tasks and their status
+- `!task start <task_name>` / `/task start task_name:<task_name>` - Start a specific background task
+- `!task stop <task_name>` / `/task stop task_name:<task_name>` - Stop a running background task
+- `!task restart <task_name>` / `/task restart task_name:<task_name>` - Restart a background task
+- `!task stopall` / `/task stopall` - Stop all running background tasks
 
 #### Available Tasks
 
@@ -244,12 +246,12 @@ python main.py
 
 **Note**: Only available when database is configured
 
-- `!db` or `!db status` - Show database connection status
-- `!db prefix [new_prefix]` - Get or set guild command prefix
-- `!db userdata <member> [key] [value]` - Manage user data
-- `!db logs [limit]` - View recent bot action logs
-- `!db tasks` - View task status from database
-- `!db query <SELECT_query>` - Execute read-only SQL queries
+- `!db` / `/db` - Show database connection status
+- `!db prefix [new_prefix]` / `/db prefix new_prefix:[prefix]` - Get or set guild command prefix
+- `!db userdata <member> [key] [value]` / `/db userdata member:<member> key:[key] value:[value]` - Manage user data
+- `!db logs [limit]` / `/db logs limit:[limit]` - View recent bot action logs
+- `!db tasks` / `/db tasks` - View task status from database
+- `!db query <SELECT_query>` / `/db query query:<query>` - Execute read-only SQL queries
 
 ## Features in Detail
 

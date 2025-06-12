@@ -216,15 +216,15 @@ class HelpCommand(commands.Cog):
             )
             await interaction.response.edit_message(embed=embed)
 
-    @commands.command(name="help", aliases=["h", "commands"])
+    @commands.hybrid_command(name="help", aliases=["h", "commands"])
     async def help_command(self, ctx, *, command_or_category: str = None):
         """
         Show help information for commands and categories
 
-        Usage:
-        !help - Show the main help menu
-        !help <command> - Show detailed help for a specific command
-        !help <category> - Show commands in a category
+        Parameters
+        ----------
+        command_or_category : str, optional
+            The command or category to get help for
         """
         try:
             if not command_or_category:
@@ -338,7 +338,7 @@ class HelpCommand(commands.Cog):
             )
             await ctx.send(embed=embed)
 
-    @commands.command(name="about", aliases=["info", "botinfo"])
+    @commands.hybrid_command(name="about", aliases=["info", "botinfo"])
     async def about_command(self, ctx):
         """Show detailed information about the bot"""
         embed = EmbedBuilder.create_embed(

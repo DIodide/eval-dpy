@@ -63,7 +63,7 @@ class DatabaseDemo(commands.Cog):
         logger.error("Database Demo Task encountered an error: %s", error)
 
     # Database Commands
-    @commands.group(name="db", aliases=["database"])
+    @commands.hybrid_group(name="db", aliases=["database"])
     @is_admin()
     async def database_commands(self, ctx):
         """Database management and demo commands"""
@@ -114,7 +114,14 @@ class DatabaseDemo(commands.Cog):
     @database_commands.command(name="prefix")
     @is_admin()
     async def manage_prefix(self, ctx, new_prefix: str = None):
-        """Get or set the guild prefix"""
+        """
+        Get or set the guild prefix
+
+        Parameters
+        ----------
+        new_prefix : str, optional
+            The new prefix to set
+        """
         if not self.bot.db:
             await ctx.send("❌ Database not available!")
             return
@@ -156,7 +163,18 @@ class DatabaseDemo(commands.Cog):
     async def manage_user_data(
         self, ctx, member: discord.Member, key: str = None, value: str = None
     ):
-        """Get or set user data"""
+        """
+        Get or set user data
+
+        Parameters
+        ----------
+        member : discord.Member
+            The member to manage data for
+        key : str, optional
+            The data key to get/set
+        value : str, optional
+            The value to set for the key
+        """
         if not self.bot.db:
             await ctx.send("❌ Database not available!")
             return
@@ -213,7 +231,14 @@ class DatabaseDemo(commands.Cog):
     @database_commands.command(name="logs")
     @is_admin()
     async def view_logs(self, ctx, limit: int = 10):
-        """View recent bot logs for this guild"""
+        """
+        View recent bot logs for this guild
+
+        Parameters
+        ----------
+        limit : int, optional
+            Number of logs to show (max 50)
+        """
         if not self.bot.db:
             await ctx.send("❌ Database not available!")
             return
@@ -297,7 +322,14 @@ class DatabaseDemo(commands.Cog):
     @database_commands.command(name="query")
     @is_admin()
     async def execute_query(self, ctx, *, query: str):
-        """Execute a raw SQL query (dangerous - admin only)"""
+        """
+        Execute a raw SQL query (SELECT only)
+
+        Parameters
+        ----------
+        query : str
+            The SQL query to execute (SELECT statements only)
+        """
         if not self.bot.db:
             await ctx.send("❌ Database not available!")
             return

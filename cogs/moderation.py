@@ -12,12 +12,21 @@ class Moderation(commands.Cog):
         self.bot = bot
         self.muted_members = {}  # Simple in-memory storage for muted members
 
-    @commands.command(name="kick")
+    @commands.hybrid_command(name="kick")
     @is_admin()
     async def kick_member(
-        self, ctx, member: discord.Member, *, reason="No reason provided"
+        self, ctx, member: discord.Member, *, reason: str = "No reason provided"
     ):
-        """Kick a member from the server"""
+        """
+        Kick a member from the server
+
+        Parameters
+        ----------
+        member : discord.Member
+            The member to kick
+        reason : str, optional
+            The reason for the kick
+        """
         if not await can_target_member(ctx, member):
             await ctx.send("❌ You cannot target this member!")
             return
@@ -42,12 +51,21 @@ class Moderation(commands.Cog):
         except Exception as e:
             await ctx.send(f"❌ An error occurred: {e}")
 
-    @commands.command(name="ban")
+    @commands.hybrid_command(name="ban")
     @is_admin()
     async def ban_member(
-        self, ctx, member: discord.Member, *, reason="No reason provided"
+        self, ctx, member: discord.Member, *, reason: str = "No reason provided"
     ):
-        """Ban a member from the server"""
+        """
+        Ban a member from the server
+
+        Parameters
+        ----------
+        member : discord.Member
+            The member to ban
+        reason : str, optional
+            The reason for the ban
+        """
         if not await can_target_member(ctx, member):
             await ctx.send("❌ You cannot target this member!")
             return
@@ -72,13 +90,22 @@ class Moderation(commands.Cog):
         except Exception as e:
             await ctx.send(f"❌ An error occurred: {e}")
 
-    @commands.command(name="unban")
+    @commands.hybrid_command(name="unban")
     @is_admin()
-    async def unban_member(self, ctx, *, member):
-        """Unban a member from the server"""
+    async def unban_member(self, ctx, user: str, *, reason: str = "No reason provided"):
+        """
+        Unban a user from the server
+
+        Parameters
+        ----------
+        user : str
+            The user to unban (format: username#discriminator or user ID)
+        reason : str, optional
+            The reason for the unban
+        """
         banned_users = [entry async for entry in ctx.guild.bans()]
 
-        member_name, member_discriminator = member.split("#")
+        member_name, member_discriminator = user.split("#")
 
         for ban_entry in banned_users:
             user = ban_entry.user
@@ -109,17 +136,28 @@ class Moderation(commands.Cog):
 
         await ctx.send("❌ Member not found in ban list!")
 
-    @commands.command(name="mute")
+    @commands.hybrid_command(name="mute")
     @is_admin()
     async def mute_member(
         self,
         ctx,
         member: discord.Member,
-        duration: int = 0,
+        duration: int,
         *,
-        reason="No reason provided",
+        reason: str = "No reason provided",
     ):
-        """Mute a member (timeout) for a specified duration in minutes"""
+        """
+        Timeout a member (mute them)
+
+        Parameters
+        ----------
+        member : discord.Member
+            The member to mute
+        duration : int
+            Duration in minutes (1-40320, max 28 days)
+        reason : str, optional
+            The reason for the mute
+        """
         if not await can_target_member(ctx, member):
             await ctx.send("❌ You cannot target this member!")
             return
@@ -158,10 +196,21 @@ class Moderation(commands.Cog):
         except Exception as e:
             await ctx.send(f"❌ An error occurred: {e}")
 
-    @commands.command(name="unmute")
+    @commands.hybrid_command(name="unmute")
     @is_admin()
-    async def unmute_member(self, ctx, member: discord.Member):
-        """Unmute a member (remove timeout)"""
+    async def unmute_member(
+        self, ctx, member: discord.Member, *, reason: str = "No reason provided"
+    ):
+        """
+        Remove timeout from a member (unmute them)
+
+        Parameters
+        ----------
+        member : discord.Member
+            The member to unmute
+        reason : str, optional
+            The reason for the unmute
+        """
         try:
             await member.timeout(None, reason=f"Unmuted by {ctx.author}")
 
@@ -183,10 +232,17 @@ class Moderation(commands.Cog):
         except Exception as e:
             await ctx.send(f"❌ An error occurred: {e}")
 
-    @commands.command(name="purge", aliases=["clear"])
+    @commands.hybrid_command(name="purge", aliases=["clear"])
     @is_admin()
     async def purge_messages(self, ctx, amount: int):
-        """Delete a specified number of messages"""
+        """
+        Delete multiple messages at once
+
+        Parameters
+        ----------
+        amount : int
+            Number of messages to delete (1-100)
+        """
         if amount <= 0:
             await ctx.send("❌ Amount must be a positive number!")
             return
@@ -219,10 +275,17 @@ class Moderation(commands.Cog):
         except Exception as e:
             await ctx.send(f"❌ An error occurred: {e}")
 
-    @commands.command(name="slowmode")
+    @commands.hybrid_command(name="slowmode")
     @is_admin()
     async def set_slowmode(self, ctx, seconds: int):
-        """Set slowmode for the current channel"""
+        """
+        Set channel slowmode delay
+
+        Parameters
+        ----------
+        seconds : int
+            Slowmode delay in seconds (0-21600)
+        """
         if seconds < 0 or seconds > 21600:
             await ctx.send("❌ Slowmode must be between 0 and 21600 seconds (6 hours)!")
             return
@@ -253,12 +316,21 @@ class Moderation(commands.Cog):
         except Exception as e:
             await ctx.send(f"❌ An error occurred: {e}")
 
-    @commands.command(name="warn")
+    @commands.hybrid_command(name="warn")
     @is_admin()
     async def warn_member(
-        self, ctx, member: discord.Member, *, reason="No reason provided"
+        self, ctx, member: discord.Member, *, reason: str = "No reason provided"
     ):
-        """Warn a member"""
+        """
+        Warn a member
+
+        Parameters
+        ----------
+        member : discord.Member
+            The member to warn
+        reason : str, optional
+            The reason for the warning
+        """
         if not await can_target_member(ctx, member):
             await ctx.send("❌ You cannot target this member!")
             return

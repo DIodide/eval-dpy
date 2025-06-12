@@ -120,6 +120,13 @@ class DiscordBot(commands.Bot):
             )
         )
 
+        # Sync slash commands automatically
+        try:
+            synced = await self.tree.sync()
+            logger.info("Synced %d slash commands", len(synced))
+        except Exception as e:
+            logger.error("Failed to sync slash commands: %s", e)
+
         # Start any background tasks here if needed
         logger.info("Bot is ready and operational!")
 
