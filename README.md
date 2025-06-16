@@ -8,6 +8,7 @@ A comprehensive Discord bot boilerplate built with discord.py featuring modular 
 - 🔄 **Hot Reloading**: Reload cogs without restarting the bot
 - 🛡️ **Moderation Tools**: Comprehensive moderation commands (kick, ban, mute, purge, etc.)
 - ⚡ **Admin Commands**: Bot management and debugging tools
+- 🌟 **Aura System**: Complete gaming system with gambling, economy, leaderboards, and social features
 - 🔐 **Permission System**: Role-based command access control
 - 📝 **Logging**: Comprehensive logging for debugging and monitoring
 - 🎨 **Rich Embeds**: Beautiful embedded messages for better UX
@@ -35,8 +36,11 @@ discord-bot/
 │   ├── __init__.py
 │   ├── admin.py        # Admin commands (reload, load, unload, etc.)
 │   ├── moderation.py   # Moderation commands (kick, ban, mute, etc.)
+│   ├── aura.py         # Aura system (gambling, economy, leaderboards)
 │   ├── tasks.py        # Background tasks and task management
 │   └── database_demo.py # Database usage examples
+├── assets/             # Images and media files
+│   └── opticcat.txt    # Placeholder for OpticCat image
 └── utils/              # Utility functions
     ├── __init__.py
     ├── checks.py       # Permission checks and helpers
@@ -501,6 +505,38 @@ class YourCogName(commands.Cog):
 async def setup(bot):
     await bot.add_cog(YourCogName(bot))
 ```
+
+### Aura System Commands
+
+The bot includes a comprehensive aura gaming system with economy features:
+
+- `!aura` / `/aura` - Check your aura amount and statistics
+- `!aura check @user` - Check another user's aura
+- `!aura slots [bet]` - Play slot machine with EVAL characters (🔥⚡💎🌟👑🎯🚀💀🌙☄️)
+- `!aura flip [bet] [heads/tails]` - Coin flip gambling
+- `!aura roll [bet] [target]` - Dice roll with multipliers
+- `!aura daily` - Claim daily aura bonus with cosmic events
+- `!aura donate @user [amount]` - Give aura to another user
+- `!aura drain @user` - Risky command to steal aura (can backfire!)
+- `!aura leaderboard` - View server aura rankings
+- `!aura titles` - See all available aura titles and requirements
+- `!aura shop` - Browse purchasable items (shields, multipliers, bombs)
+- `!aura shop [item]` - Purchase a shop item
+- `!erika` - Special tribute command for Erika
+- `!opticcat` - Hidden mega aura command (not in help)
+
+**Features:**
+
+- 🎰 Multiple gambling games with different odds and strategies
+- 💰 Economy system with items and effects
+- 🏆 Progressive title system from "Aura Seeker" to "Aura God"
+- 🛡️ Protection items (shields) and enhancement items (multipliers)
+- 📊 Detailed statistics tracking and leaderboards
+- 🎨 Beautiful color-coded embeds based on aura level
+- 🔒 Cooldown system to prevent spam
+- 💾 Full database persistence
+
+For detailed documentation, see [AURA_COMMANDS.md](AURA_COMMANDS.md)
 
 ## Troubleshooting
 

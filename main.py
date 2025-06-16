@@ -5,7 +5,7 @@ import os
 import logging
 import aiohttp
 from dotenv import load_dotenv
-from utils.database import DatabaseManager
+from utils.database import DatabaseManager, SQLiteManager
 from utils.env_validator import validate_environment_or_exit
 
 # Load environment variables from .env file
@@ -56,7 +56,8 @@ class DiscordBot(commands.Bot):
             "cogs.admin",
             "cogs.tasks",
             "cogs.database_demo",
-            "cogs.algorithm"
+            "cogs.algorithm",
+            "cogs.aura",  # Aura system cog
         ]
 
         for cog in cogs_to_load:
@@ -71,13 +72,23 @@ class DiscordBot(commands.Bot):
     async def create_database_connection(self):
         """Create database connection pool"""
         try:
+            # Try PostgreSQL first
             self.db = DatabaseManager(self)
             await self.db.initialize()
-            logger.info("Database manager initialized")
+            logger.info("PostgreSQL database manager initialized")
         except Exception as e:
-            logger.warning("Database initialization failed: %s", e)
-            logger.warning("Bot will continue without database functionality")
-            self.db = None
+            logger.warning("PostgreSQL initialization failed: %s", e)
+            logger.info("Falling back to SQLite database...")
+
+            try:
+                # Fallback to SQLite
+                self.db = SQLiteManager(self)
+                await self.db.initialize()
+                logger.info("SQLite database manager initialized")
+            except Exception as sqlite_error:
+                logger.error("SQLite initialization also failed: %s", sqlite_error)
+                logger.warning("Bot will continue without database functionality")
+                self.db = None
 
     async def create_http_session(self):
         """Create a global aiohttp session"""
