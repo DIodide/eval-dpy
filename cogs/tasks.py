@@ -21,6 +21,8 @@ class Tasks(commands.Cog):
         self.example_task_2.add_exception_type(Exception)
         self.api_monitor_task.add_exception_type(Exception)
 
+        #self.example_task_1.start()
+
     async def cog_unload(self):
         """Stop all tasks when the cog is unloaded"""
         logger.info("Stopping all tasks before unloading...")

@@ -3,7 +3,7 @@ from discord.ext import commands
 from utils.checks import is_admin
 from utils.menus import EmbedBuilder, LeaderboardBuilder, send_paginated_embed
 import logging
-from utils.analytics import SSBUPlayer
+from utils.analytics import SSBUPlayer, RocketLeaguePlayer
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,18 @@ class Algorithm(commands.Cog):
         await mango.fetch_win_rates()
         x = await mango.get_stats()
         await ctx.send(x)
-        
+
+    @commands.command(name="getRLStats")
+    async def getRLStats(self, ctx, platform, id):
+        player = RocketLeaguePlayer.RocketLeaguePlayer(platform, id, self.ballchasingKey, self.bot.session)
+        await player.fetch_replay_list()
+        await player.fetch2v2stats()
+        await player.categorize_player()
+        await player.fetch_main_car()
+        x = await player.get_stats("ranked-doubles")
+        y = await player.get_car()
+        await ctx.send(x)
+        await ctx.send(y)
     
 
 
