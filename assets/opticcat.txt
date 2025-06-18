@@ -1,0 +1,14 @@
+This is a placeholder for the OpticCat image.
+
+Replace this file with:
+- opticcat.png (PNG format)
+- opticcat.jpg (JPG format)
+- opticcat.gif (GIF format, for animated cats!)
+
+The image should be:
+- Not too large (under 8MB for Discord)
+- Related to cats/optical/mystical themes
+- Preferably 512x512 or similar square dimensions
+
+This placeholder will be used until a real image is provided.
+🐱‍👤 OpticCat awaits your creative vision! 🐱‍👤 

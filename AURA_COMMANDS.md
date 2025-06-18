@@ -69,6 +69,35 @@ The Aura System is a comprehensive gaming and social feature for your Discord bo
   - Positive titles (Aura Seeker → Aura God)
   - Negative titles (Aura Deficit → Aura Banished)
 
+### 👑 Admin Commands
+
+- **`!aura add [@user] [amount]`** - **[ADMIN ONLY]** Add aura to a user
+
+  - Requires Administrator permission
+  - Maximum 1,000,000 aura per command
+  - All actions logged to database
+  - Example: `!aura add @User 5000`
+
+- **`!aura remove [@user] [amount]`** - **[ADMIN ONLY]** Remove aura from a user
+
+  - Requires Administrator permission
+  - Maximum 1,000,000 aura per command
+  - Can make user's aura negative
+  - Example: `!aura remove @User 2000`
+
+- **`!aura set [@user] [amount]`** - **[ADMIN ONLY]** Set user's aura to specific amount
+
+  - Requires Administrator permission
+  - Range: -1,000,000 to 10,000,000
+  - Shows previous amount and change
+  - Example: `!aura set @User 50000`
+
+- **`!aura reset [@user]`** - **[ADMIN ONLY]** Reset user's aura profile
+
+  - Requires Administrator permission
+  - Resets aura to 100, clears all effects and cooldowns
+  - Complete clean slate for the user
+
 ### 🌸 Special Commands
 
 - **`!erika`** - Give tribute to Erika (ID: 277200034469117955)

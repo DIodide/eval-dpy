@@ -16,7 +16,7 @@ from typing import Dict, Any
 import discord
 from discord.ext import commands
 
-from utils.menus import EmbedBuilder, LeaderboardBuilder, send_paginated_embed
+from utils.menus import EmbedBuilder, send_paginated_embed
 from utils.database import get_db, SQLiteManager
 
 logger = logging.getLogger(__name__)
@@ -678,23 +678,46 @@ class Aura(commands.Cog):
             await ctx.send("❌ No users found with aura data!")
             return
 
-        # Create leaderboard embed
-        leaderboard_entries = []
-        for entry in leaderboard_data[:20]:  # Top 20
-            # Format value to include both aura and title
-            formatted_value = f"{entry['aura']:,} ✨ ({entry['title']})"
-            leaderboard_entries.append(
-                {"name": entry["user"].display_name, "value": formatted_value}
+        # Create custom aura leaderboard embeds
+        embeds = []
+        page_size = 10
+        total_pages = (len(leaderboard_data) + page_size - 1) // page_size
+
+        for page in range(total_pages):
+            start_idx = page * page_size
+            end_idx = min(start_idx + page_size, len(leaderboard_data))
+            page_entries = leaderboard_data[start_idx:end_idx]
+
+            embed = EmbedBuilder.create_embed(
+                title="🏆 Aura Leaderboard",
+                color=discord.Color.gold(),
+                timestamp=True,
             )
 
-        embeds = LeaderboardBuilder.create_leaderboard(
-            title="🏆 Aura Leaderboard",
-            entries=leaderboard_entries,
-            page_size=10,
-            key_field="name",
-            value_field="value",
-            color=discord.Color.gold(),
-        )
+            leaderboard_text = ""
+            for i, entry in enumerate(page_entries, start=start_idx + 1):
+                # Get medal emoji for top 3
+                if i == 1:
+                    medal = "🥇"
+                elif i == 2:
+                    medal = "🥈"
+                elif i == 3:
+                    medal = "🥉"
+                else:
+                    medal = f"`{i:2d}.`"
+
+                name = entry["user"].display_name
+                aura = entry["aura"]
+                title = entry["title"]
+
+                leaderboard_text += f"{medal} **{name}** - `{aura:,} ✨` ({title})\n"
+
+            embed.description = leaderboard_text
+
+            if total_pages > 1:
+                embed.set_footer(text=f"Page {page + 1} of {total_pages}")
+
+            embeds.append(embed)
 
         await send_paginated_embed(ctx, embeds)
 
@@ -798,6 +821,202 @@ class Aura(commands.Cog):
                 description=f"You bought {name} for {cost:,} aura!",
             )
             await ctx.send(embed=embed)
+
+    # Admin commands
+    @aura.command(name="add", description="[ADMIN] Add aura to a user")
+    @commands.has_permissions(administrator=True)
+    async def aura_add(self, ctx, target: discord.Member, amount: int):
+        """Add aura to a user (Admin only)"""
+        if amount <= 0:
+            await ctx.send("❌ Amount must be positive!")
+            return
+
+        if amount > 1000000:  # 1 million limit
+            await ctx.send("❌ Cannot add more than 1,000,000 aura at once!")
+            return
+
+        # Add aura
+        new_total = await self.modify_aura(
+            target.id, amount, ctx.guild.id, f"admin_add_by_{ctx.author.id}"
+        )
+
+        embed = EmbedBuilder.create_success_embed(
+            title="⚡ Aura Added",
+            description=(
+                f"**{ctx.author.mention}** added **{amount:,} aura** to {target.mention}\n\n"
+                f"**New Total:** {new_total:,} ✨"
+            ),
+        )
+        await ctx.send(embed=embed)
+
+        # Log action in database
+        db = get_db(self.bot)
+        await db.log_action(
+            ctx.guild.id,
+            ctx.author.id,
+            "admin_aura_add",
+            {
+                "target_user": target.id,
+                "amount_added": amount,
+                "new_total": new_total,
+                "moderator": ctx.author.id,
+            },
+        )
+
+    @aura.command(name="remove", description="[ADMIN] Remove aura from a user")
+    @commands.has_permissions(administrator=True)
+    async def aura_remove(self, ctx, target: discord.Member, amount: int):
+        """Remove aura from a user (Admin only)"""
+        if amount <= 0:
+            await ctx.send("❌ Amount must be positive!")
+            return
+
+        if amount > 1000000:  # 1 million limit
+            await ctx.send("❌ Cannot remove more than 1,000,000 aura at once!")
+            return
+
+        # Check current aura
+        target_data = await self.get_user_aura_data(target.id, ctx.guild.id)
+        current_aura = target_data["amount"]
+
+        if current_aura == 0 and amount > 0:
+            await ctx.send(f"❌ {target.display_name} has no aura to remove!")
+            return
+
+        # Remove aura (can go negative)
+        new_total = await self.modify_aura(
+            target.id, -amount, ctx.guild.id, f"admin_remove_by_{ctx.author.id}"
+        )
+
+        embed = EmbedBuilder.create_success_embed(
+            title="🔥 Aura Removed",
+            description=(
+                f"**{ctx.author.mention}** removed **{amount:,} aura** from {target.mention}\n\n"
+                f"**New Total:** {new_total:,} ✨"
+            ),
+        )
+        await ctx.send(embed=embed)
+
+        # Log action in database
+        db = get_db(self.bot)
+        await db.log_action(
+            ctx.guild.id,
+            ctx.author.id,
+            "admin_aura_remove",
+            {
+                "target_user": target.id,
+                "amount_removed": amount,
+                "previous_total": current_aura,
+                "new_total": new_total,
+                "moderator": ctx.author.id,
+            },
+        )
+
+    @aura.command(
+        name="set", description="[ADMIN] Set a user's aura to a specific amount"
+    )
+    @commands.has_permissions(administrator=True)
+    async def aura_set(self, ctx, target: discord.Member, amount: int):
+        """Set a user's aura to a specific amount (Admin only)"""
+        if amount < -1000000 or amount > 10000000:
+            await ctx.send("❌ Amount must be between -1,000,000 and 10,000,000!")
+            return
+
+        # Get current aura
+        target_data = await self.get_user_aura_data(target.id, ctx.guild.id)
+        current_aura = target_data["amount"]
+        difference = amount - current_aura
+
+        # Set aura
+        await self.modify_aura(
+            target.id, difference, ctx.guild.id, f"admin_set_by_{ctx.author.id}"
+        )
+
+        embed = EmbedBuilder.create_success_embed(
+            title="⚙️ Aura Set",
+            description=(
+                f"**{ctx.author.mention}** set {target.mention}'s aura to **{amount:,} ✨**\n\n"
+                f"**Previous:** {current_aura:,} ✨\n"
+                f"**Change:** {difference:+,} ✨"
+            ),
+        )
+        await ctx.send(embed=embed)
+
+        # Log action in database
+        db = get_db(self.bot)
+        await db.log_action(
+            ctx.guild.id,
+            ctx.author.id,
+            "admin_aura_set",
+            {
+                "target_user": target.id,
+                "previous_amount": current_aura,
+                "new_amount": amount,
+                "difference": difference,
+                "moderator": ctx.author.id,
+            },
+        )
+
+    @aura.command(name="reset", description="[ADMIN] Reset a user's aura to 100")
+    @commands.has_permissions(administrator=True)
+    async def aura_reset(self, ctx, target: discord.Member):
+        """Reset a user's aura to the default 100 (Admin only)"""
+        # Get current aura
+        target_data = await self.get_user_aura_data(target.id, ctx.guild.id)
+        current_aura = target_data["amount"]
+        difference = 100 - current_aura
+
+        # Reset aura and clear all effects/items
+        target_data["amount"] = 100
+        target_data["shield_expires"] = None
+        target_data["multiplier_expires"] = None
+        target_data["items"] = []
+        target_data["cooldowns"] = {}
+        target_data["daily_last"] = None
+
+        await self.update_user_aura_data(target.id, target_data, ctx.guild.id)
+
+        embed = EmbedBuilder.create_success_embed(
+            title="🔄 Aura Reset",
+            description=(
+                f"**{ctx.author.mention}** reset {target.mention}'s aura profile\n\n"
+                f"**Previous:** {current_aura:,} ✨\n"
+                f"**New:** 100 ✨\n"
+                f"**All effects and cooldowns cleared**"
+            ),
+        )
+        await ctx.send(embed=embed)
+
+        # Log action in database
+        db = get_db(self.bot)
+        await db.log_action(
+            ctx.guild.id,
+            ctx.author.id,
+            "admin_aura_reset",
+            {
+                "target_user": target.id,
+                "previous_amount": current_aura,
+                "reset_to": 100,
+                "moderator": ctx.author.id,
+            },
+        )
+
+    # Error handlers for admin commands
+    @aura_add.error
+    @aura_remove.error
+    @aura_set.error
+    @aura_reset.error
+    async def admin_command_error(self, ctx, error):
+        """Handle errors for admin commands"""
+        if isinstance(error, commands.MissingPermissions):
+            embed = EmbedBuilder.create_error_embed(
+                title="Permission Denied",
+                description="❌ You need **Administrator** permissions to use this command!",
+            )
+            await ctx.send(embed=embed, ephemeral=True)
+        else:
+            # Re-raise other errors to be handled by global error handler
+            raise error
 
     # Personal commands
     @commands.hybrid_command(name="erika", description="Give tribute to Erika")
